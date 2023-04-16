@@ -5,13 +5,25 @@ import getSortedPosts from "@utils/getSortedPosts";
 import getPageNumbers from "@utils/getPageNumbers";
 
 import { getCollection } from "astro:content";
+import { languages } from "@i18n/ui";
 
-const posts = await getCollection("blog");
+export async function getStaticPaths() {
+  const result = Object.keys(languages).map(lang => {
+    return {
+      params: { lang },
+    };
+  });
+
+  return [...result];
+}
+
+const { lang } = Astro.params;
+
+const posts = await getCollection("blog", ({ data }) => data.language === lang);
 
 const sortedPosts = getSortedPosts(posts);
 
 const totalPages = getPageNumbers(sortedPosts.length);
-
 const paginatedPosts = sortedPosts.slice(0, SITE.postPerPage);
 ---
 

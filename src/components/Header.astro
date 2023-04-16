@@ -6,18 +6,26 @@ import LinkButton from "./LinkButton.astro";
 import logoPNG from "/assets/logo.png";
 import logoSVG from "/assets/logo.svg";
 
+import { getLangFromUrl, useTranslations } from "@i18n/utils";
+import LanguagePicker from "./LanguagePicker";
+
 export interface Props {
   activeNav?: "posts" | "tags" | "about" | "search";
 }
 
 const { activeNav } = Astro.props;
+const lang = getLangFromUrl(Astro.url);
+// /en/tags/release --> [ '', 'en', 'tags', 'release' ]
+const slug = Astro.url.pathname.split("/").slice(2).join("/");
+
+const t = useTranslations(lang);
 ---
 
 <header>
-  <a id="skip-to-content" href="#main-content">Skip to content</a>
+  <a id="skip-to-content" href="#main-content">{t("header.skip")}</a>
   <div class="nav-container">
     <div class="top-nav-wrap">
-      <a href="/" class="logo">
+      <a href={`/${lang}`} class="logo">
         {
           LOGO_IMAGE.enable ? (
             <img
@@ -46,28 +54,37 @@ const { activeNav } = Astro.props;
         </button>
         <ul id="menu-items" class="display-none sm:flex">
           <li>
-            <a href="/posts" class={activeNav === "posts" ? "active" : ""}>
-              Posts
+            <a
+              href={`/${lang}/posts`}
+              class={activeNav === "posts" ? "active" : ""}
+            >
+              {t("nav.posts")}
             </a>
           </li>
           <li>
-            <a href="/tags" class={activeNav === "tags" ? "active" : ""}>
-              Tags
+            <a
+              href={`/${lang}/tags`}
+              class={activeNav === "tags" ? "active" : ""}
+            >
+              {t("nav.tags")}
             </a>
           </li>
           <li>
-            <a href="/about" class={activeNav === "about" ? "active" : ""}>
-              About
+            <a
+              href={`/${lang}/about`}
+              class={activeNav === "about" ? "active" : ""}
+            >
+              {t("nav.about")}
             </a>
           </li>
           <li>
             <LinkButton
-              href="/search"
+              href={`/${lang}/search`}
               className={`focus-outline p-3 sm:p-1 ${
                 activeNav === "search" ? "active" : ""
               }`}
               ariaLabel="search"
-              title="Search"
+              title={t("nav.search")}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -97,6 +114,9 @@ const { activeNav } = Astro.props;
                 </button>
               )
             }
+          </li>
+          <li>
+            <LanguagePicker client:load language={lang} slug={slug} />
           </li>
         </ul>
       </nav>

@@ -3,9 +3,25 @@ import { getCollection } from "astro:content";
 import getSortedPosts from "@utils/getSortedPosts";
 import slugify from "@utils/slugify";
 import { SITE } from "@config";
+import { languages } from "@i18n/ui";
 
-export async function get() {
-  const posts = await getCollection("blog");
+export async function getStaticPaths() {
+  const result = Object.keys(languages).map(lang => {
+    return {
+      params: { lang },
+    };
+  });
+
+  return [...result];
+}
+
+export async function get(context: any) {
+  const { lang } = context.params as { lang: keyof typeof languages };
+
+  const posts = await getCollection(
+    "blog",
+    ({ data }) => data.language === lang
+  );
   const sortedPosts = getSortedPosts(posts);
   return rss({
     title: SITE.title,

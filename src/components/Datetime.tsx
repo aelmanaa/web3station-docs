@@ -1,10 +1,18 @@
+import type { languages } from "@i18n/ui";
+
 export interface Props {
   datetime: string | Date;
+  language: keyof typeof languages;
   size?: "sm" | "lg";
   className?: string;
 }
 
-export default function Datetime({ datetime, size = "sm", className }: Props) {
+export default function Datetime({
+  datetime,
+  language,
+  size = "sm",
+  className,
+}: Props) {
   return (
     <div className={`flex items-center space-x-2 opacity-80 ${className}`}>
       <svg
@@ -19,22 +27,28 @@ export default function Datetime({ datetime, size = "sm", className }: Props) {
       </svg>
       <span className="sr-only">Posted on:</span>
       <span className={`italic ${size === "sm" ? "text-sm" : "text-base"}`}>
-        <FormattedDatetime datetime={datetime} />
+        <FormattedDatetime datetime={datetime} language={language} />
       </span>
     </div>
   );
 }
 
-const FormattedDatetime = ({ datetime }: { datetime: string | Date }) => {
+const FormattedDatetime = ({
+  datetime,
+  language,
+}: {
+  datetime: string | Date;
+  language: keyof typeof languages;
+}) => {
   const myDatetime = new Date(datetime);
 
-  const date = myDatetime.toLocaleDateString([], {
+  const date = myDatetime.toLocaleDateString([language], {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
 
-  const time = myDatetime.toLocaleTimeString([], {
+  const time = myDatetime.toLocaleTimeString([language], {
     hour: "2-digit",
     minute: "2-digit",
   });

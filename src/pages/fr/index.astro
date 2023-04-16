@@ -1,0 +1,30 @@
+---
+import LinkButton from "@components/LinkButton.astro";
+import Index from "@layouts/IndexPage.astro";
+---
+
+<Index
+  featured="À la une"
+  recentPosts="Articles récents"
+  allPosts="Tous les articles"
+  socialLinks="Liens Sociaux"
+>
+  <div slot="description">
+    <p>
+      AstroPaper est un thème de blog Astro pour les blogs. Ce thème respecte
+      les meilleures pratiques et offre une accessibilité dès le départ. Les
+      modes clair et foncé sont pris en charge par défaut. De plus, il est
+      possible de configurer des jeux de couleurs supplémentaires, des jeux de
+      couleurs supplémentaires peuvent également être configurés.
+    </p>
+    <p>
+      Lisez les articles du blog ou consultez
+      <LinkButton
+        className="hover:text-skin-accent underline underline-offset-4 decoration-dashed"
+        href="https://github.com/satnaing/astro-paper#readme"
+      >
+        README
+      </LinkButton> pour plus d'informations.
+    </p>
+  </div>
+</Index>

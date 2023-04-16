@@ -1,0 +1,90 @@
+---
+author: Sat Naing
+pubDatetime: 2023-01-30T15:57:52.737Z
+title: AstroPaper 2.0
+language: fr
+postSlug: astro-paper-2
+featured: true
+ogImage: https://user-images.githubusercontent.com/53733092/215771435-25408246-2309-4f8b-a781-1f3d93bdf0ec.png
+tags:
+  - release
+description: "AstroPaper avec les améliorations d'Astro v2 : contenus markdown sécurisés, corrections de bugs, meilleure expérience de développement, etc."
+---
+
+Astro 2.0 a été publié avec des fonctionnalités intéressantes, des ruptures, des améliorations de DX, un meilleur recouvrement des erreurs, etc. AstroPaper tire parti de ces fonctionnalités, en particulier de l'API Content Collections.
+
+![Introducing AstroPaper 2.0](https://user-images.githubusercontent.com/53733092/215771435-25408246-2309-4f8b-a781-1f3d93bdf0ec.png)
+
+## Toc
+
+## Fonctionnalités et Changements
+
+### Frontmatters à sécurité typographique et schéma de blog redéfini
+
+Le Frontmatter des contenus Markdown d'AstroPaper 2.0 est désormais sûr grâce aux Content Collections d'Astro. Le schéma du blog est défini dans le fichier src/content/\_schemas.ts.
+
+### Nouvel emplacement pour les contenus du blog
+
+Tous les articles de blog ont été déplacés du répertoire `src/contents` vers le répertoire `src/content/blog`.
+
+### Nouvelle API Fetch
+
+Les contenus sont maintenant récupérés avec la fonction `getCollection`. Il n'est plus nécessaire de spécifier de chemin relatif vers le contenu.
+
+```ts
+// Ancienne méthode
+- const postImportResult = import.meta.glob<MarkdownInstance<Frontmatter>>(
+  "../contents/**/**/*.md",);
+
+// Nouvelle méthode
++ const postImportResult = await getCollection("blog");
+```
+
+### Logique de recherche modifiée pour de meilleurs résultats de recherche
+
+Dans l'ancienne version d'AstroPaper, lorsque quelqu'un recherchait un article, les critères de recherche qui étaient pris en compte étaient `title`, `description` et `headings` (`headings` signifie tous les titres h1 à h6 de l'article de blog). Dans AstroPaper v2, seuls `title` et `description` seront recherchés pendant que l'utilisateur tape.
+
+### Propriétés du Frontmatter renommées
+
+Les propriétés du Frontmatter suivantes ont été renommées.
+
+| Anciens noms | Nouveaux noms |
+| ------------ | ------------- |
+| datetime     | pubDatetime   |
+| slug         | postSlug      |
+
+### Balise par défaut pour un article de blog
+
+Si un article de blog n'a pas de balises (en d'autres termes, la propriété frontmatter tags n'est pas spécifiée), la balise par défaut others sera utilisér pour cet article de blog. Cependant, vous pouvez définir la balise par défaut dans le fichier /src/content/\_schemas.ts.
+
+```ts
+// src/contents/_schemas.ts
+export const blogSchema = z.object({
+  // ---
+  // remplacer "others"
+  tags: z.array(z.string()).default(["others"]),
+  ogImage: z.string().optional(),
+  description: z.string(),
+});
+```
+
+### Nouveau schéma de couleurs sombres prédéfini
+
+AstroPaper v2 propose un nouveau schéma de couleurs sombres (contraste élevé et faible contraste) basé sur le logo sombre d'Astro. Consultez [ce lien](https://astro-paper.pages.dev/posts/predefined-color-schemes#astro-dark) pour plus d'informations.
+
+![New Predefined Dark Color Scheme](https://user-images.githubusercontent.com/53733092/215680520-59427bb0-f4cb-48c0-bccc-f182a428d72d.svg)
+
+### Tri automatique des classes
+
+AstroPaper 2.0 inclut le tri automatique des classes avec le [plugin TailwindCSS Prettier](https://tailwindcss.com/blog/automatic-class-sorting-with-prettier)
+
+### Docs et README mis à jour
+
+Tous les [#docs](https://astro-paper.pages.dev/tags/docs/) articles de blog et le [README](https://github.com/satnaing/astro-paper#readme) ont été mis à jour pour cette version AstroPaper v2.
+
+## Corrections de bugs
+
+- correction des tags cassés sur la page de l'article de blog
+- dans une page de tag, la dernière partie du fil d'Ariane est maintenant mise en minuscules pour plus de cohérence
+- exclusion des brouillons d'articles dans une page de tag
+- correction du problème de mise à jour de 'onChange value' après le rechargement de la page

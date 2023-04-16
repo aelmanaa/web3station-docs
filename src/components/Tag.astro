@@ -1,4 +1,8 @@
 ---
+import { getLangFromUrl } from "@i18n/utils";
+
+const lang = getLangFromUrl(Astro.url);
+
 export interface Props {
   name: string;
   size?: "sm" | "lg";
@@ -13,7 +17,7 @@ const { name, size = "sm" } = Astro.props;
   }`}
 >
   <a
-    href={`/tags/${name.toLowerCase()}`}
+    href={`/${lang}/tags/${name.toLowerCase()}`}
     class={`${size === "sm" ? "text-sm" : "text-lg"} pr-2 group`}
   >
     <svg

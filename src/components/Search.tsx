@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import Card from "@components/Card";
 import slugify from "@utils/slugify";
 import type { BlogFrontmatter } from "@content/_schemas";
+import { useTranslations } from "@i18n/utils";
+import type { languages } from "@i18n/ui";
 
 export type SearchItem = {
   title: string;
@@ -12,6 +14,7 @@ export type SearchItem = {
 
 interface Props {
   searchList: SearchItem[];
+  lang: keyof typeof languages;
 }
 
 interface SearchResult {
@@ -19,9 +22,11 @@ interface SearchResult {
   refIndex: number;
 }
 
-export default function SearchBar({ searchList }: Props) {
+export default function SearchBar({ searchList, lang }: Props) {
+  const t = useTranslations(lang);
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputVal, setInputVal] = useState("");
+
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(
     null
   );
@@ -82,7 +87,7 @@ export default function SearchBar({ searchList }: Props) {
         border-opacity-40 bg-skin-fill py-3 pl-10
         pr-3 placeholder:italic placeholder:text-opacity-75 
         focus:border-skin-accent focus:outline-none"
-          placeholder="Search for anything..."
+          placeholder={`${t("search.anything")}...`}
           type="text"
           name="search"
           value={inputVal}
@@ -107,7 +112,7 @@ export default function SearchBar({ searchList }: Props) {
         {searchResults &&
           searchResults.map(({ item, refIndex }) => (
             <Card
-              href={`/posts/${slugify(item.data)}`}
+              href={`/${lang}/posts/${slugify(item.data)}`}
               frontmatter={item.data}
               key={`${refIndex}-${slugify(item.data)}`}
             />

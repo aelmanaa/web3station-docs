@@ -7,15 +7,30 @@ import Main from "@layouts/Main.astro";
 import Tag from "@components/Tag.astro";
 import getUniqueTags from "@utils/getUniqueTags";
 import { SITE } from "@config";
+import { useTranslations } from "@i18n/utils";
+import { languages } from "@i18n/ui";
 
-const posts = await getCollection("blog");
+export async function getStaticPaths() {
+  const result = Object.keys(languages).map(lang => {
+    return {
+      params: { lang },
+    };
+  });
+
+  return [...result];
+}
+
+const { lang } = Astro.params as { lang: keyof typeof languages };
+const t = useTranslations(lang);
+
+const posts = await getCollection("blog", ({ data }) => data.language === lang);
 
 let tags = getUniqueTags(posts);
 ---
 
 <Layout title={`Tags | ${SITE.title}`}>
   <Header activeNav="tags" />
-  <Main pageTitle="Tags" pageDesc="All the tags used in posts.">
+  <Main pageTitle={t("tags.title")} pageDesc={`${t("tags.description")} .`}>
     <ul>
       {tags.map(tag => <Tag name={tag} size="lg" />)}
     </ul>

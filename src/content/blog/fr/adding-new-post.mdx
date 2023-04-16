@@ -1,0 +1,119 @@
+---
+author: Sat Naing
+pubDatetime: 2022-09-23T15:22:00Z
+title: Ajouter de nouveaux articles dans le thème AstroPaper
+language: fr
+postSlug: adding-new-posts-in-astropaper-theme
+featured: true
+draft: false
+tags:
+  - docs
+ogImage: ""
+description: Quelques règles et recommandations pour créer ou ajouter de nouveaux messages en utilisant le thème AstroPaper
+---
+
+Voici quelques règles/recommandations, conseils et astuces pour créer de nouveaux articles dans le thème de blog AstroPaper.
+
+## Toc
+
+## Première page
+
+Frontmatter est l'endroit principal où sont stockées les informations importantes concernant le post (article). Il se trouve en haut de l'article et est écrit au format YAML. Pour en savoir plus sur le frontmatter et son utilisation, consultez [astro documentation] (https://docs.astro.build/en/guides/markdown-content/).
+
+Voici la liste des propriétés frontmatter pour chaque article.
+
+| Propriété         | Description                                                                                                | Remarque                                       |
+| ----------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| **_title_**       | Titre de l'article. (h1)                                                                                   | requis<sup>\*</sup>                            |
+| **_description_** | Description de l'article. Utilisée dans l'extrait de l'article et la description du site pour cet article. | requis<sup>\*</sup>                            |
+| **_pubDatetime_** | Date et heure de publication au format ISO 8601.                                                           | requis<sup>\*</sup>                            |
+| **_author_**      | Auteur de l'article.                                                                                       | par défaut = SITE.author                       |
+| **_postSlug_**    | Identifiant (slug) pour l'article. Sera automatiquement converti en slug.                                  | par défaut = titre transformé en slug          |
+| **_featured_**    | Indique si l'article doit être affiché dans la section "En vedette" de la page d'accueil.                  | par défaut = false                             |
+| **_draft_**       | Marquer cet article comme "non publié".                                                                    | par défaut = false                             |
+| **_tags_**        | Mots-clés associés à cet article. Écrits au format tableau yaml.                                           | par défaut = autres                            |
+| **_ogImage_**     | Image OG de l'article. Utile pour le partage sur les réseaux sociaux et le référencement.                  | par défaut = SITE.ogImage ou image SVG générée |
+
+Seuls les champs `title`, `description` et `pubDatetime` du frontmatter doivent être spécifiés.
+
+Le titre et la description (extrait) sont importants pour l'optimisation des moteurs de recherche (SEO) et AstroPaper encourage donc à les inclure dans les articles de blog.
+
+`slug` est l'identifiant unique de l'url. Ainsi, `slug` doit être unique et différent des autres articles. Les espaces blancs de `slug` doivent être séparés par `-` ou `_`, mais `-` est recommandé. Cependant, même si vous n'écrivez pas le bon slug, AstroPaper va automatiquement slugifier votre slug incorrect. Si le mot "slug" n'est pas spécifié, c'est le titre de l'article qui sera utilisé comme mot "slug".
+
+Si vous omettez `tags` dans un article de blog (en d'autres termes, si aucun tag n'est spécifié), le tag par défaut `autres` sera utilisé comme tag pour cet article. Vous pouvez définir la balise par défaut dans le fichier `/src/content/_schemas.ts`.
+
+```ts
+// src/contents/_schemas.ts
+export const blogSchema = z.object({
+  // ---
+  // remplacez "others" par ce que vous voulez
+  tags: z.array(z.string()).default(["others"]),
+  ogImage: z.string().optional(),
+  description: z.string(),
+});
+```
+
+### Exemple Frontmatter
+
+Voici un exemple de frontmatter pour un article.
+
+```yaml
+# src/contents/sample-post.md
+---
+title: Le titre de l'article
+author: your name
+pubDatetime: 2022-09-21T05:17:19Z
+postSlug: titre-article
+featured: true
+draft: false
+tags:
+  - certains
+  - exemple
+  - balises
+ogImage: ""
+description: Ceci est un exemple.
+---
+```
+
+## Ajout d'une table des matières
+
+Par défaut, un post (article) ne contient pas de table des matières. Pour inclure la table des matières, vous devez la spécifier d'une manière particulière.
+
+Écrivez `Table des matières` au format h2 (## en markdown) et placez-la à l'endroit où vous voulez qu'elle apparaisse dans l'article.
+
+Par exemple, si vous voulez placer votre table des matières juste sous le paragraphe d'introduction (comme je le fais habituellement), vous pouvez le faire de la manière suivante.
+
+```md
+---
+# frontmatter
+---
+
+Voici quelques recommandations, conseils et astuces pour créer de nouveaux articles dans le thème de blog AstroPaper.
+
+## Table des matières
+
+<!-- le reste de l'article -->
+```
+
+## Titres
+
+Il y a une chose à noter à propos des titres. Les articles du blog AstroPaper utilisent le titre (titre dans le frontmatter) comme titre principal de l'article. Par conséquent, les autres titres de l'article doivent utiliser h2 \~ h6.
+
+Cette règle n'est pas obligatoire, mais fortement recommandée pour des raisons visuelles, d'accessibilité et de référencement (SEO).
+
+## Bonus
+
+### Compression d'images
+
+Lorsque vous insérez des images dans un article de blog, il est recommandé de les compresser. Cela affectera les performances globales du site web.
+
+Ma recommandation pour les sites de compression d'images.
+
+- [TinyPng](https://tinypng.com/)
+- [TinyJPG](https://tinyjpg.com/)
+
+### Image OG
+
+L'image OG par défaut sera placée si un message ne spécifie pas d'image OG. Bien qu'elle ne soit pas obligatoire, l'image OG liée à l'article doit être spécifiée dans l'article de tête. La taille recommandée pour l'image OG est **_1200 X 640_** px.
+
+> Depuis AstroPaper v1.4.0, les images OG seront générées automatiquement si elles ne sont pas spécifiées. Consultez [l'annonce] (https://astro-paper.pages.dev/posts/dynamic-og-image-generation-in-astropaper-blog-posts/).

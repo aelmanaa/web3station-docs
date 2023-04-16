@@ -1,0 +1,136 @@
+---
+author: Sat Naing
+pubDatetime: 2022-09-25T15:20:35Z
+title: Personnalisation des schémas de couleurs du thème AstroPaper
+language: fr
+postSlug: "customizing-astropaper-theme-color-schemes"
+featured: false
+draft: false
+tags:
+  - color-schemes
+  - docs
+ogImage: ""
+description:
+  Comment activer/désactiver les modes clair et foncé, et personnaliser les jeux de couleurs
+  du thème AstroPaper.
+---
+
+Cet article explique comment vous pouvez activer/désactiver les modes clair et foncé pour le site web. De plus, vous apprendrez comment vous pouvez personnaliser les schémas de couleurs de l'ensemble du site web.
+
+## Toc
+
+## Activer/désactiver les modes clair et foncé
+
+Le thème AstroPaper comprendra par défaut un mode clair et un mode foncé. En d'autres termes, il y aura deux schémas de couleurs, l'un pour le mode clair et l'autre pour le mode foncé. Ce comportement par défaut peut être désactivé dans l'objet de configuration SITE du fichier `src/config.ts`.
+
+```js
+// file: src/config.ts
+export const SITE = {
+  website: "https://astro-paper.pages.dev/",
+  author: "Sat Naing",
+  desc: "Un thème de blog Astro minimal, responsive et SEO-friendly.",
+  title: "AstroPaper",
+  ogImage: "astropaper-og.jpg",
+  lightAndDarkMode: true, // true by default
+  postPerPage: 3,
+};
+```
+
+Pour désactiver le mode "lumière et obscurité", réglez `SITE.lightAndDarkMode` sur `false`.
+
+## Choisir une palette de couleurs primaires
+
+Par défaut, si nous désactivons `SITE.lightAndDarkMode`, nous n'obtiendrons que le schéma de couleurs préféré par le système.
+
+Ainsi, pour choisir le schéma de couleurs primaire au lieu du schéma de couleurs préféré, nous devons définir le schéma de couleurs dans la variable primaryColorScheme dans `public/toggle-theme.js`.
+
+```js
+/* file: public/toggle-theme.js */
+const primaryColorScheme = ""; // "light" | "dark"
+
+// Get theme data from local storage
+const currentTheme = localStorage.getItem("theme");
+
+// autres codes etc...
+```
+
+La variable **primaryColorScheme** peut contenir deux valeurs `clair`, `foncé`. Vous pouvez laisser la chaîne vide (par défaut) si vous ne souhaitez pas spécifier le schéma de couleurs primaires.
+
+- `""` - schéma de couleurs préféré du système. (par défaut)
+- `"light"` - utilise le mode clair comme palette de couleurs primaires.
+- `"dark"` - utilise le mode sombre comme palette de couleurs primaires.
+
+<details>
+<summary>Pourquoi 'primaryColorScheme' n'est pas dans config.ts?</summary>
+
+> Pour éviter le scintillement des couleurs lors du rechargement de la page, nous devons placer les codes JavaScript de basculement le plus tôt possible lors du chargement de la page. Cela résout le problème du scintillement, mais en contrepartie, nous ne pouvons plus utiliser les importations ESM.
+
+[Cliquez ici](https://docs.astro.build/en/reference/directives-reference/#isinline) pour en savoir plus sur le script Astro `is:inline`.
+
+</details>
+
+## Personnaliser les couleurs
+
+Les couleurs claires et foncées du thème AstroPaper peuvent être personnalisées. Vous pouvez le faire dans le fichier `src/styles/base.css`.
+
+```css
+/* fichier: src/styles/base.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root,
+  html[data-theme="light"] {
+    --color-fill: 251, 254, 251;
+    --color-text-base: 40, 39, 40;
+    --color-accent: 0, 108, 172;
+    --color-card: 230, 230, 230;
+    --color-card-muted: 205, 205, 205;
+    --color-border: 236, 233, 233;
+  }
+  html[data-theme="dark"] {
+    --color-fill: 47, 55, 65;
+    --color-text-base: 230, 230, 230;
+    --color-accent: 26, 217, 217;
+    --color-card: 63, 75, 90;
+    --color-card-muted: 89, 107, 129;
+    --color-border: 59, 70, 85;
+  }
+  /* autres styles */
+}
+```
+
+Dans le thème AstroPaper, les sélecteurs `:root` et `html[data-theme="light"]` sont utilisés pour le schéma de couleurs clair, et `html[data-theme="dark"]` est utilisé pour le schéma de couleurs sombre. Si vous souhaitez personnaliser votre propre schéma de couleurs, vous devez spécifier votre schéma de couleurs clair à l'intérieur de `:root`, `html[data-theme="light"]` et votre schéma de couleurs sombre à l'intérieur de `html[data-theme="dark"]`.
+
+Les couleurs sont déclarées en notation de propriété personnalisée CSS (variable CSS). Les valeurs des propriétés de couleur sont écrites en valeurs rgb. (Remarque: au lieu de `rgb(40, 39, 40)`, spécifiez simplement `40, 39, 40`)
+
+Voici une explication détaillée des propriétés de couleur.
+
+| Propriété de couleur | Définition et utilisation                                                            |
+| -------------------- | ------------------------------------------------------------------------------------ |
+| `--color-fill`       | Couleur principale du site. Habituellement l'arrière-plan principal.                 |
+| `--color-text-base`  | Couleur secondaire du site. Habituellement la couleur du texte.                      |
+| `--color-accent`     | Couleur d'accent du site. Couleur de lien, couleur au survol, etc.                   |
+| `--color-card`       | Couleur de fond de la carte, de la barre de défilement et du code (comme ceci).      |
+| `--color-card-muted` | Couleur de fond de la carte et de la barre de défilement pour l'état au survol, etc. |
+| `--color-border`     | Couleur de la bordure. Utilisée en particulier dans la ligne horizontale (hr).       |
+
+Voici un exemple de changement du schéma de couleurs clair :
+
+```css
+@layer base {
+  /* lobster color scheme */
+  :root,
+  html[data-theme="light"] {
+    --color-fill: 246, 238, 225;
+    --color-text-base: 1, 44, 86;
+    --color-accent: 225, 74, 57;
+    --color-card: 220, 152, 145;
+    --color-card-muted: 233, 119, 106;
+    --color-border: 220, 152, 145;
+  }
+}
+```
+
+> Consultez quelques [schémas de couleurs prédéfinis](https://astro-paper.pages.dev/posts/predefined-color-schemes/) qu'AstroPaper a déjà créés pour vous.
