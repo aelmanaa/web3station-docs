@@ -5,7 +5,7 @@ export const SITE: Site = {
   author: "Web3 Station",
   desc: "Discover the latest insights, trends, and innovations in the world of blockchain and web3 technology with our expertly crafted blog articles. Dive deep into the transformative power of decentralized networks, explore the fascinating world of cryptocurrencies, and stay ahead of the curve with cutting-edge web3 development techniques. Join our thriving community of blockchain enthusiasts and developers as we navigate the future of the internet together. Unlock the true potential of the decentralized web today!",
   title: "Web3Station",
-  ogImage: "",
+  ogImage: "og.jpeg",
   lightAndDarkMode: true,
   postPerPage: 3,
 };
