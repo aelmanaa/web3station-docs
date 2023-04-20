@@ -1,0 +1,353 @@
+---
+author: Amine El
+pubDatetime: 2023-04-20T15:22:00Z
+title: Solve Ethernaut Level3 Coin Flip
+language: en
+postSlug: ""
+featured: true
+draft: false
+tags:
+  - ethernaut
+  - randomness
+  - chainlink
+  - solidity
+ogImage: ""
+description: Explore the challenges of blockchain randomness. Dive into the Ethernaut Coin Flip challenge and uncover the risks of unsecured randomness in smart contracts. Finally, secure your Coin Flip smart contract with the reliable and robust solution of Chainlink VRF v2
+---
+
+import CodeLink from "@components/CodeLink.astro";
+import ImageWithZoom from "@components/ImageWithZoom.tsx";
+
+In this guide, you will learn about generating randomness on blockchains:
+
+- First, we'll introduce Randomness and why it is challenging in Blockchains (see [Blockchain and Randomness](#blockchain-and-randomness)).
+- Then, you will hack the [Ethernaut Coin Flip challenge](https://ethernaut.openzeppelin.com/level/3) to demonstrate how to hack a smart contract that uses unsecured randomness (see [Problem with unsecured randomness: Coin Flip Challenge](#problem-with-unsecured-randomness-coin-flip-challenge)).
+- Finally, you will fix the Ethernault Coin Flip smart contract using a secure randomness source: Chainlink VRF v2 (see [Solution: Coin Flip fix - Chainlink VRF](#solution-coinflip-fix---chainlink-vrf-v2)).
+
+## Toc
+
+## Blockchain and Randomness
+
+[Randomness](https://dictionary.cambridge.org/dictionary/english/randomness) refers to a lack of predictability. For instance, the outcome of a dice roll is unpredictable.
+
+Blockchains are deterministic systems whereby the same inputs always create the same outputs. This _deterministic_ attribute allows blockchain validator nodes (in [proof of stake](https://ethereum.org/en/developers/docs/consensus-mechanisms/pos/) consensus mechanism) or blockchain mining nodes (in [proof of work](https://ethereum.org/en/developers/docs/consensus-mechanisms/pow/mining/) consensus mechanism) to reach consensus. They must all reach the same outcome when executing a transaction. Thus, blockchain systems do not provide any native solution for generating randomness, which contradicts their _deterministic_ attribute.
+
+Does it mean that randomness is not used in blockchain? Not so fast…
+Randomness is already used (non-exhaustive list) in the following:
+
+- Proof of Stake: randomly select validator responsibilities.
+- NFTs: assign random attributes when generating NFTs.
+- Gaming: matchmaking, critical hits (battles)...ETc.
+
+Read this [blog](https://chain.link/education-hub/rng-in-blockchain-use-cases) for a more comprehensive list.
+
+Now, one might ask the following questions:
+
+- Because blockchains are deterministic, how do these blockchain applications get randomness?
+- And, more importantly, how to ensure randomness is fair and no one can bias the system? Image a play-to-earn game using a biased randomness source…
+
+To answer these questions, you could use (but please don't 🙂) naive and, more importantly, **unsecure solutions** :
+
+- Opaque [Oracle](https://ethereum.org/en/developers/docs/oracles/) operator: Request randomness from an Oracle operator who does not provide cryptographic guarantees for tamper resistance and fair generation. A malicious or compromised oracle could deliver biased data to your smart contracts and expose your users. For instance, you built an on-chain lottery and requested randomness from an _opaque_ oracle to determine the winning numbers. If malicious, the oracle could participate in the lottery and generate "random" numbers suiting his game.
+- On-chain workaround: Rely on blocks' [timestamps or hashes](https://docs.soliditylang.org/en/v0.8.17/units-and-global-variables.html#block-and-transaction-properties). However, miners with skin in the game could decide when to "mine" a transaction. Thus, influencing the timestamp and hash values.
+
+The **solution** is to use a provably fair RNG (Random Number Generator) such as [Chainlink VRF](https://chain.link/vrf), in which each random result is unbiased and cryptographically verified on-chain. To learn more about Verifiable Random Functions, you can read this [article](https://chain.link/education-hub/verifiable-random-function-vrf).
+
+## Problem with unsecured randomness: Coin Flip Challenge
+
+To illustrate the severe risks of relying on on-chain solutions, let's hack the [Coin Flip Ethernaut challenge](https://ethernaut.openzeppelin.com/level/3).
+
+### Objective
+
+In this challenge, you must guess the outcome of flipping a coin. Guess the outcome ten times a row, and you win the challenge.
+
+<CodeLink
+  httplink="https://raw.githubusercontent.com/web3station/CoinFlip/main/contracts/CoinFlip.sol"
+  lang="solidity"
+/>
+
+### Analyzing the contract
+
+To guess the outcome of flipping a coin, one has to call the function `flip` and provide a boolean (true/false) as input. Let's go through the `flip` function:
+
+- The first line computes a "random" value based on the hash (`blockhash`) of the previous block (`block.number - 1`). Because blockhash returns a _bytes32_ value, the result is [converted](https://docs.soliditylang.org/en/v0.8.17/types.html#explicit-conversions) from _bytes32_ to _uint256_ to get an unsigned 256 bits integer.
+
+  ```solidity
+  uint256 blockValue = uint256(blockhash(block.number - 1))
+  ```
+
+- Then the function enforces it is only called once within a given block: If it has already been called in the same block, the function reverts.
+
+  ```solidity
+  if (lastHash == blockValue) {
+    revert();
+  }
+  lastHash = blockValue;
+  ```
+
+- `coinFlip` is calculated by dividing `blockValue` by `Factor`. `Factor` is a uint256 [state variable](https://docs.soliditylang.org/en/v0.8.17/structure-of-a-contract.html#state-variables). If the value of `coinFlip` is `1`, then the `side` will be set to `true`; otherwise, it will be set to `false`. Remember that in Solidity, the [division of integers](https://docs.soliditylang.org/en/v0.8.17/types.html#division) results in an integer.
+
+  ```solidity
+  uint256 coinFlip = blockValue / FACTOR;
+  bool side = coinFlip == 1 ? true : false;
+  ```
+
+- The contract has a counter (`consecutiveWins`). The calculated `side` is compared to the guessed value `_guess`. If the guessed value is correct, then the counter is incremented. If not, the counter resets.
+
+  ```solidity
+  if (side == _guess) {
+    consecutiveWins++;
+    return true;
+  } else {
+    consecutiveWins = 0;
+    return false;
+  }
+  ```
+
+### Hacking the contract
+
+Let's demonstrate that relying on `blockhash` for randomness is a bad idea and that we can trick the contract and always guess the outcome of flipping a coin.
+
+The simplest solution is to deploy a contract with a function that calculates the expected coin flip using the same algorithm as the `flip` function and then calls `CoinFlip` contract with the expected result. There are several documented solutions online:
+
+- [solution1](https://www.goodbytes.be/article/ethernaut-walkthrough-level-3-coin-flip).
+- [solution2](https://hackernoon.com/how-to-solve-the-level-3-of-the-ethernaut-game).
+
+As a challenge, I wanted to hack the contract off-chain without deploying another contract. The solution works fine in a local blockchain environment. However, it is not always easy to use on a public testnet (e.g., Sepolia) as you are not 100% certain that the miners will include the transactions in the correct block. **Note**: If you can finetune the code to make it always work on Sepolia, please open a PR 😉 . The repo can be found [here](https://github.com/web3station/CoinFlip).
+
+#### On a local Blockchain
+
+If you want to experiment:
+
+- Please open a terminal, clone the repo, and install all the dependencies:
+
+  ```bash
+  git clone git@github.com:web3station/CoinFlip.git && cd CoinFlip
+  yarn
+  ```
+
+- Compile the contracts:
+
+  ```bash
+  yarn compile
+  ```
+
+- In a new terminal, start a local blockchain environment:
+
+  ```bash
+  yarn start-node
+  ```
+
+- Deploy CoinFlip:
+
+  ```bash
+  yarn deploy-coinflip
+  ```
+
+- Note the address of the deployed contract:
+
+  <ImageWithZoom
+    client:load
+    src="/blogs/ethernaut/level3/contract-deployed.png"
+    alt="Deployed CoinFlip contract"
+  />
+
+- Hack the contract:
+
+  ```bash
+  yarn flip <your-address>
+  ```
+
+  <ImageWithZoom
+    client:load
+    src="/blogs/ethernaut/level3/hack-the-contract.png"
+    alt="Hack the CoinFlip contract on your local blockchain"
+  />
+
+If you are interested in the flip script, you can find it [here](https://github.com/web3station/CoinFlip/blob/main/tasks/flip.ts).
+
+#### On a public testnet
+
+- Please open a terminal, clone the repo, and install all the dependencies:
+
+  ```bash
+  git clone git@github.com:web3station/CoinFlip.git && cd CoinFlip
+  yarn
+  ```
+
+- Compile the contracts:
+
+  ```bash
+  yarn compile
+  ```
+
+- Copy `.env.example` into `.env` to generate your environment file:
+
+  ```bash
+  cp .env.example .env
+  ```
+
+- Open `.env` and fill in the required variables.
+
+- Deploy CoinFlip on the correct network. Example on Sepolia:
+
+  ```bash
+  yarn deploy-coinflip --network sepolia
+  ```
+
+      <ImageWithZoom
+        client:load
+        src="/blogs/ethernaut/level3/contract-deployed-sepolia.png"
+        alt="Deployed CoinFlip contract on Sepolia testnet"
+      />
+
+- Note the address of the deployed contract.
+
+- Hack the contract. **Note**: The main challenge is ensuring the validators/miners include the transaction in the right block. Depending on the network congestion, you might have to wait until the challenge is solved. You might notice that the consecutive wins restart, which means that the validators didn't include the transaction in the expected block.
+
+  ```bash
+  yarn flip <your-address> --network sepolia
+  ```
+
+  <ImageWithZoom
+    client:load
+    src="/blogs/ethernaut/level3/hack-the-contract-sepolia.png"
+    alt="Hack the contract on Sepolia testnet"
+  />
+
+## Solution: CoinFlip fix - Chainlink VRF v2
+
+Now that we have seen how we could accurately guess the outcome of the `coinFlip` function, let's use [Chainlink VRF](https://chain.link/vrf) to get secure randomness and fix the `CoinFlip` contract.
+
+### Introduction to Chainlink VRF v2
+
+Chainlink Verifiable Random Function (VRF) is the industry-standard RNG solution, enabling smart contracts and off-chain systems to access a source of verifiable randomness using off-chain computation. You can learn more about Chainlink VRF [here](https://chain.link/vrf).
+
+At the time of writing, there were two versions: v1 and v2. We are going to use v2 as it includes several improvements. Note that Chainlink VRF v2 offers two methods for requesting randomness. As the [Chainlink developer documentation](https://docs.chain.link/vrf/v2/introduction#two-methods-to-request-randomness) states:
+
+> [Subscription](https://docs.chain.link/vrf/v2/subscription/): Create a subscription account and fund its balance with LINK tokens. Users can then connect multiple consuming contracts to the subscription account. When the consuming contracts request randomness, the transaction costs are calculated after the randomness requests are fulfilled, and the subscription balance is deducted accordingly. This method allows you to fund requests for multiple consumer contracts from a single subscription.
+
+> [Direct funding](https://docs.chain.link/vrf/v2/direct-funding/): Consuming contracts directly pay with LINK when they request random values. You must directly fund your consumer contracts and ensure there are enough LINK tokens to pay for randomness requests.
+
+Because we will deploy one consumer contract and use it for a "one-off" request, the [Direct Funding](https://docs.chain.link/vrf/v2/direct-funding/) method seems more suitable to our use case.
+
+### Prerequisites
+
+To run the next tutorial, you will need:
+
+- [Metamask wallet](https://metamask.io/).
+- [Remix Development Environment](https://remix.ethereum.org/). If you have never deployed a contract using Remix IDE, follow this [beginner tutorial](https://docs.chain.link/getting-started/deploy-your-first-contract).
+- The test will be made on the Sepolia testnet. Therefore, you will need enough Sepolia ETH to deploy and interact with your contract. You will also need enough Sepolia LINK tokens to pay the Chainlink network to get secure randomness. You can get testnet LINKs from the [Chainlink faucet](https://faucets.chain.link/).
+
+### CoinFlip Fix
+
+Here below is a `CoinFlipFix` contract. Please be aware that some variables are hardcoded and defined as state variables for educational purposes, making this contract unsuitable for production deployment.
+
+<CodeLink
+  httplink="https://raw.githubusercontent.com/web3station/CoinFlip/main/contracts/CoinFlipFix.sol"
+  lang="solidity"
+/>
+
+The best way to understand the Chainlink VRF v2 Direct Funding method is to try the _Get a Random Number_ from the [official docs](https://docs.chain.link/vrf/v2/direct-funding/examples/get-a-random-number). It is a quick tutorial that will teach you the required imports and configuration to get randomness.
+
+Randomness is requested from an oracle service, which generates an array of random numbers and a cryptographic proof. Then, the oracle returns the results in a callback. This sequence is known as the [Request and Receive cycle](https://docs.chain.link/architecture-overview/architecture-request-model/). For that reason, there are two functions:
+
+- `flip`: used to request randomness. It could be any name you can think of as long as the function calls `requestRandomness`.
+
+- `fulfillRandomWords`: this is the callback function where you can process the received random words. The function signature cannot be changed. In fact, notice that your contract inherits from `VRFV2WrapperConsumerBase` and that the callback is defined [here](https://github.com/smartcontractkit/chainlink/blob/b3abf270de833c6c0d29e28dc0de738dda03ab7d/contracts/src/v0.8/vrf/VRFV2WrapperConsumerBase.sol#L79).
+
+Let's analyze the new `flip` function:
+
+- It receives a boolean array of `_guesses` as input, which length is expected to be 10 (We ask the players to guess the ten coin flips in advance. They win if they get everything right).
+
+- Then It calls Chainlink VRF (`requestRandomness`) to request ten random words. The function returns a unique id: `requestId`. Note that requestRandomness takes care of paying the oracle in LINK tokens along with requesting randomness. The amount is based on `callbackGasLimit`, which is the limit for how much gas to use for calling the callback function `fulfillRandomWords` **plus** a premium. The cost is detailed in the [developer documentation](https://docs.chain.link/vrf/v2/estimating-costs).
+
+- The requestId, the paid amount, and player-guessed values `_guesses` are stored in the `requests` mapping.
+
+  ```solidity
+  requests[requestId] = RequestStatus({
+
+  paid: VRF_V2_WRAPPER.calculateRequestPrice(callbackGasLimit),
+  randomWords: new uint256[](0),
+  fulfilled: false,
+  sides: new bool[](0),
+  guesses: _guesses
+  });
+  ```
+
+On the other hand, the callback function `fulfillRandomWords` processes the received random words:
+
+- Marks the request as fulfilled and stores the received random words.
+
+  ```solidity
+  requests[_requestId].fulfilled = true;
+
+  requests[_requestId].randomWords = _randomWords;
+  ```
+
+- It then calculates the `side` for each received random word by dividing it by `FACTOR` (similar logic to the Ethernaut CoinFlip challenge).
+
+  ```solidity
+  bool[] memory sides = new bool[](10);
+
+  uint256 coinFlip;
+  for (uint8 i = 0; i < _randomWords.length; i++) {
+  coinFlip = _randomWords[i] / FACTOR;
+  sides[i] = coinFlip == 1 ? true : false;
+  }
+  requests[_requestId].sides = sides;
+  ```
+
+- Then it calls a private function `getGameResults` that compares player-guessed values with random sides. The function returns the number of correct results `correctResults` and a boolean `isWinner` set to true if the player got all the guesses right.
+
+- Finally, it emits an event `GameResult` with the game results.
+
+Note that at any time, a player can call `getRequestStatus` to get the results of a specific game (uniquely identified by `_requestId`).
+
+### Test
+
+Now let's test the `CoinFlipFix` contract:
+
+- Open [Remix IDE](https://remix.ethereum.org/#lang=en&optimize=false&runs=200&evmVersion=null). Create a new solidity file CoinFlipFix.sol and copy/paste the code above into it.
+
+- Compile the contract, then deploy it on Sepolia testnet.
+
+- Fund your contract with LINK tokens (~3 LINK tokens per `flip` call). You can follow [this tutorial](https://docs.chain.link/resources/fund-your-contract/) to learn how to fund a contract.
+
+- Now try to get ten coin flips. For instance : `[false,false,true,true,true,true,false,true,true,false]`. Then click on `transact`.
+
+  <ImageWithZoom
+    client:load
+    src="/blogs/ethernaut/level3/coinflix-fix-transact.png"
+    alt="CoinFlip fix transact"
+  />
+
+- Metamask opens and asks you to confirm the transaction. **Important note**: Remix IDE doesn't set the right gas limit. For this example to work, set a gas limit of _400,000_, as [explained here](https://support.metamask.io/hc/en-us/articles/360022895972).
+
+- Once confirmed, click on `lastRequestId` to fetch the request id.
+
+  <ImageWithZoom
+    client:load
+    src="/blogs/ethernaut/level3/coinflix-fix-lastRequestId.png"
+    alt="CoinFlip fix last request id"
+  />
+
+- Wait for a few minutes, then click on `getRequestStatus` with your request id. In my test, I got six correct results.
+
+  <ImageWithZoom
+    client:load
+    src="/blogs/ethernaut/level3/coinflix-fix-getRequestStatus.png"
+    alt="CoinFlip fix last request id"
+  />
+
+- Play several times and see if you can win the game 🙂.
+
+## Closing thoughts
+
+As discussed in the beginning, _Randomness_ is essential for many projects: NFTs, gaming, lotteries…ETc. When developing a smart contract, you have to pay great attention to the user experience and security of the users: Relying on unsecure off-chain solutions (e.g., oracles without any cryptographic verification) or on-chain workarounds (e.g., blockhashes) must be a no-go, and you should rely on oracles that provide tamper-proof randomness that can be cryptographically verified on-chain. To learn more about Chainlink VRF:
+
+- [Official website](https://chain.link/vrf).
+
+- [Why True Randomness is important in web3](https://chain.link/education-hub/randomness-web3).
+
+- [Verifiable Random Function (VRF)](https://chain.link/education-hub/verifiable-random-function-vrf).

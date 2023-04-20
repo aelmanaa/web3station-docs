@@ -1,0 +1,23 @@
+---
+import { Code } from "astro/components";
+
+export interface Props {
+  httplink: string;
+  language: string;
+  theme?: string;
+  wrap?: boolean;
+}
+
+const { httplink, language, theme, wrap = false } = Astro.props;
+
+// fetch code
+const response = await fetch(httplink);
+const data = await response.text();
+---
+
+<Code
+  code={`${data}`}
+  lang={language as any}
+  wrap={wrap}
+  theme={theme ? theme : undefined}
+/>

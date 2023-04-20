@@ -1,0 +1,354 @@
+---
+author: Amine El
+pubDatetime: 2023-04-20T15:22:00Z
+title: Résoudre le niveau 3 d'Ethernaut "Coin Flip"
+language: fr
+postSlug: ""
+featured: true
+draft: false
+tags:
+  - ethernaut
+  - aléatoire
+  - hazard
+  - chainlink
+  - solidity
+ogImage: ""
+description: Explorez les défis de génération de nombres aléatoires dans la blockchain. Plongez dans le défi Ethernaut Coin Flip et découvrez les risques liés à la génération non sécurisée de nombres aléatoires dans les contrats intelligents. Enfin, sécurisez votre contrat intelligent Coin Flip avec la solution fiable et robuste de Chainlink VRF v2.
+---
+
+import CodeLink from "@components/CodeLink.astro";
+import ImageWithZoom from "@components/ImageWithZoom.tsx";
+
+Dans ce guide, vous apprendrez à générer des nombres aléatoires dans la blockchain:
+
+- Tout d'abord, nous présenterons l'aléatoire et pourquoi il est difficile d'en générer dans la blockchain (voir [Blockchain et aléatoire](#blockchain-et-aléatoire)).
+- Ensuite, vous résoudrez le [défi Ethernaut Coin Flip](https://ethernaut.openzeppelin.com/level/3) pour montrer comment pirater un contrat intelligent qui utilise des nombres aléatoires non sécurisés (voir [Problème](#problème-avec-laléatoire-non-sécurisé--le-défi-coin-flip) ).
+- Enfin, vous corrigerez le contrat intelligent Ethernault Coin Flip en utilisant une source d'aléatoire sécurisée : Chainlink VRF v2 (voir [Solution](#solution--correction-de-coinflip---chainlink-vrf-v2) ).
+
+## Toc
+
+## Blockchain et aléatoire
+
+[L'aléatoire](https://www.larousse.fr/dictionnaires/francais/al%C3%A9atoire/2155) fait référence à l'absence de prévisibilité. Par exemple, le résultat d'un lancer de dés est imprévisible.
+
+Les blockchains sont des systèmes déterministes où les mêmes entrées produisent toujours les mêmes sorties. Cet attribut _déterministe_ permet aux nœuds validateurs de la blockchain (dans le mécanisme de consensus [preuve d'enjeu](https://ethereum.org/fr/developers/docs/consensus-mechanisms/pos/)) ou aux nœuds de minage de la blockchain (dans le mécanisme de consensus [preuve de travail](https://ethereum.org/fr/developers/docs/consensus-mechanisms/pow/)) d'atteindre un consensus. Ils doivent tous parvenir au même résultat lors de l'exécution d'une transaction. Ainsi, les systèmes de blockchain ne fournissent aucune solution native pour générer de l'aléatoire, car fournir une solution pour générer de l'aléatoire contredirait leur attribut _déterministe_.
+
+Cela signifie-t-il que l'aléatoire n'est pas utilisé dans la blockchain ? Pas si vite…
+L'aléatoire est déjà utilisé (liste non exhaustive) dans les cas suivants :
+
+- Preuve d'enjeu : sélection aléatoire des responsabilités des validateurs.
+- NFT : attribuer des attributs aléatoires lors de la génération de NFT.
+- Jeux : matchmaking, coups critiques (combats)... Etc.
+
+Lisez ce [blog](https://chain.link/education-hub/rng-in-blockchain-use-cases) pour une liste plus complète.
+
+Maintenant, on pourrait se poser les questions suivantes :
+
+- Étant donné que les blockchains sont déterministes, comment ces applications blockchain obtiennent-elles de l'aléatoire ?
+- Et, plus important encore, comment garantir que l'aléatoire est équitable et que personne ne peut biaiser le système ? Imaginez un jeu avec gains utilisant une source d'aléatoire biaisée…
+
+Pour répondre à ces questions, vous pourriez utiliser (mais s'il vous plaît, ne le faites pas 🙂) des solutions naïves et, surtout, **non sécurisées** :
+
+- Opérateur [Oracle](https://ethereum.org/fr/developers/docs/oracles/) opaque : Demander de l'aléatoire à un opérateur Oracle qui ne fournit pas de preuves/garanties cryptographiques de génération équitable. Un oracle malveillant ou compromis pourrait fournir des données biaisées à vos contrats intelligents et nuire à vos utilisateurs. Par exemple, vous avez créé une loterie sur et demandé de l'aléatoire à un oracle _opaque_ pour déterminer les numéros gagnants. L'oracle pourrait participer à la loterie et générer des nombres "aléatoires" qui arrangeraient son jeu.
+- Solution de contournement: S'appuyer sur les [horodatages ou les hachages](https://docs.soliditylang.org/en/v0.8.17/units-and-global-variables.html#block-and-transaction-properties) des blocs. Cependant, les mineurs ayant un enjeu dans le jeu pourraient décider quand "miner" une transaction. Ainsi, influençant les valeurs d'horodatage et de hachage.
+
+La **solution** consiste à utiliser un générateur de nombres aléatoires (RNG) équitable et prouvable, tel que [Chainlink VRF](https://chain.link/vrf), dans lequel chaque résultat aléatoire est impartial et vérifié cryptographiquement sur la chaîne. Pour en savoir plus sur les fonctions aléatoires vérifiables, vous pouvez lire cet [article](https://chain.link/education-hub/verifiable-random-function-vrf).
+
+## Problème avec l'aléatoire non sécurisé : le défi Coin Flip
+
+Pour illustrer les risques importants de s'appuyer sur des solutions de contournement, nous allons pirater le [défi Coin Flip Ethernaut](https://ethernaut.openzeppelin.com/level/3).
+
+### Objectif
+
+Dans ce défi, vous devez deviner le résultat d'un lancer de pièce. Devinez le résultat dix fois de suite, et vous remportez le défi.
+
+<CodeLink
+  httplink="https://raw.githubusercontent.com/web3station/CoinFlip/main/contracts/CoinFlip.sol"
+  lang="solidity"
+/>
+
+### Analyse du contrat
+
+Pour deviner le résultat d'un lancer de pièce, il faut appeler la fonction `flip` et fournir un booléen (vrai/faux) en entrée. Passons en revue la fonction `flip` :
+
+- La première ligne calcule une valeur "aléatoire" basée sur le hachage (`blockhash`) du bloc précédent (`block.number - 1`). Comme `blockhash` renvoie une valeur _bytes32_, le résultat est [converti](https://docs.soliditylang.org/en/v0.8.17/types.html#explicit-conversions) de _bytes32_ en _uint256_ pour obtenir un entier non signé de 256 bits.
+
+  ```solidity
+  uint256 blockValue = uint256(blockhash(block.number - 1))
+  ```
+
+- Ensuite, la fonction vérifie qu'elle est appelée une seule fois dans un bloc donné : si elle a déjà été appelée dans le même bloc, la fonction renvoie une erreur.
+
+  ```solidity
+  if (lastHash == blockValue) {
+   revert();
+  }
+  lastHash = blockValue;
+  ```
+
+- `coinFlip` est calculé en divisant blockValue par `FACTOR`. `FACTOR` est une variable d'état uint256 [variable d'état](https://docs.soliditylang.org/en/v0.8.17/structure-of-a-contract.html#state-variables). Si la valeur de `coinFlip` est `1`, alors `side` sera `true`; sinon, il sera `false`. N'oubliez pas qu'en Solidity, la [division d'entiers](https://docs.soliditylang.org/en/v0.8.17/types.html#division) donne un entier.
+
+  ```solidity
+  uint256 coinFlip = blockValue / FACTOR;
+  bool side = coinFlip == 1 ? true : false;
+  ```
+
+- Le contrat a un compteur (`consecutiveWins`). `side` est comparé à la valeur devinée `_guess`. Si la valeur devinée est correcte, alors le compteur est incrémenté. Sinon, le compteur est remis à zéro.
+
+  ```solidity
+  if (side == _guess) {
+    consecutiveWins++;
+    return true;
+  } else {
+    consecutiveWins = 0;
+    return false;
+  }
+  ```
+
+### Piratage du contrat
+
+Démontrons qu'utiliser le `blockhash` pour générer de l'aléatoire est une mauvaise idée et que nous pouvons deviner le résultat du lancer de pièce.
+
+La solution la plus simple consiste à déployer un contrat avec une fonction qui calcule le lancer de pièce attendu en utilisant le même algorithme que la fonction `flip`, puis appelle le contrat `CoinFlip` avec le résultat attendu. Plusieurs solutions documentées en ligne existent:
+
+- [solution1](https://www.goodbytes.be/article/ethernaut-walkthrough-level-3-coin-flip).
+- [solution2](https://hackernoon.com/how-to-solve-the-level-3-of-the-ethernaut-game).
+
+En guise de défi, j'ai voulu pirater le contrat hors chaîne sans déployer un autre contrat. La solution fonctionne bien dans un environnement local. Cependant, il n'est pas toujours facile à utiliser sur un testnet public (par exemple, Sepolia), car on n'est pas sûr à 100% que les mineurs incluent les transactions dans le bloc attendu. **Note** : si vous pouvez affiner le code pour le rendre toujours fonctionnel sur Sepolia, veuillez ouvrir une PR 😉. Le répo peut être trouvé [ici](https://github.com/web3station/CoinFlip).
+
+#### Sur Blockchain locale
+
+Afin de tester:
+
+- Veuillez ouvrir un terminal, cloner le répo, et installer toutes les dépendances :
+
+  ```bash
+  git clone git@github.com:web3station/CoinFlip.git && cd CoinFlip
+  yarn
+  ```
+
+- Compilez les contrats:
+
+  ```bash
+  yarn compile
+  ```
+
+- Dans un nouveau terminal, démarrez un environnement local :
+
+  ```bash
+  yarn start-node
+  ```
+
+- Deployez CoinFlip:
+
+  ```bash
+  yarn deploy-coinflip
+  ```
+
+- Notez l'addresse du contrat déployé:
+
+  <ImageWithZoom
+    client:load
+    src="/blogs/ethernaut/level3/contract-deployed.png"
+    alt="Contrat CoinFlip déployé"
+  />
+
+- Piratez le contrat:
+
+  ```bash
+  yarn flip <your-address>
+  ```
+
+  <ImageWithZoom
+    client:load
+    src="/blogs/ethernaut/level3/hack-the-contract.png"
+    alt="Piratez le contrat CoinFlip sur votre blockchain locale"
+  />
+
+Si vous êtes intéressé par le script, vous pouvez le trouver [ici](https://github.com/web3station/CoinFlip/blob/main/tasks/flip.ts).
+
+#### Sur un testnet public
+
+- Veuillez ouvrir un terminal, cloner le répo, et installer toutes les dépendances :
+
+  ```bash
+  git clone git@github.com:web3station/CoinFlip.git && cd CoinFlip
+  yarn
+  ```
+
+- Compilez les contrats:
+
+  ```bash
+  yarn compile
+  ```
+
+- Copiez `.env.example` vers `.env` afin de générer un nouveau fichier de variables d'environnement:
+
+  ```bash
+  cp .env.example .env
+  ```
+
+- Ouvrez `.env` and completez les variables obligatoires.
+
+- Deployez CoinFlip. Example on Sepolia:
+
+  ```bash
+  yarn deploy-coinflip --network sepolia
+  ```
+
+      <ImageWithZoom
+        client:load
+        src="/blogs/ethernaut/level3/contract-deployed-sepolia.png"
+        alt="CoinFlip déployé sur Sepolia testnet"
+      />
+
+- Notez l'addresse du contrat déployé.
+
+- Piratez le contrat. **Note** : Le principal défi consiste à s'assurer que les validateurs/mineurs incluent la transaction dans le bon bloc. En fonction de la congestion du réseau, vous pourriez peut-être remarquer que les victoires consécutives redémarrent, ce qui signifie que les validateurs n'ont pas inclus la transaction dans le bloc attendu.
+
+  ```bash
+  yarn flip <your-address> --network sepolia
+  ```
+
+  <ImageWithZoom
+    client:load
+    src="/blogs/ethernaut/level3/hack-the-contract-sepolia.png"
+    alt="Piratez le contrat sur Sepolia testnet"
+  />
+
+## Solution : Correction de CoinFlip - Chainlink VRF v2
+
+Maintenant que nous avons vu comment nous pourrions deviner avec précision le résultat de la fonction `coinFlip`, utilisons [Chainlink VRF](https://chain.link/vrf) pour obtenir une sécurité aléatoire et corriger le contrat `CoinFlip`.
+
+### Introduction à Chainlink VRF v2
+
+Chainlink Verifiable Random Function (VRF) est une solution RNG standard, permettant aux contrats intelligents et aux systèmes hors chaîne d'accéder à une source de hasard vérifiable en utilisant un calcul hors chaîne. Vous pouvez en apprendre davantage sur Chainlink VRF [ici](https://chain.link/vrf).
+
+Au moment de la rédaction, il existait deux versions: v1 et v2. Nous allons utiliser v2 car il inclut plusieurs améliorations. Notez que Chainlink VRF v2 offre deux méthodes pour demander des nombres aléatoires. Comme la [documentation](https://docs.chain.link/vrf/v2/introduction#two-methods-to-request-randomness) indique:
+
+> [Abonnement](https://docs.chain.link/vrf/v2/subscription/): Créez un compte d'abonnement et approvisionnez son solde avec des jetons LINK. Les utilisateurs peuvent ensuite connecter plusieurs contrats consommateurs au compte d'abonnement. Lorsque les contrats consommateurs demandent des nombres aléatoires, les frais de transaction sont calculés à la fin de celle-ci, et le solde d'abonnement est déduit en conséquence. Cette méthode vous permet de financer les demandes de plusieurs contrats consommateurs à partir d'un seul abonnement.
+
+> [Financement direct](https://docs.chain.link/vrf/v2/direct-funding/): Les contrats consommateurs paient directement avec LINK lorsqu'ils demandent des valeurs aléatoires. Vous devez financer directement vos contrats consommateurs et vous assurer qu'il y a suffisamment de jetons LINK pour payer les requêtes.
+
+Comme nous allons déployer un contrat consommateur et l'utiliser pour une demande unique, la méthode [Financement direct](https://docs.chain.link/vrf/v2/direct-funding/) semble plus appropriée à notre cas d'utilisation.
+
+### Prérequis
+
+Pour exécuter le prochain tutoriel, vous aurez besoin de :
+
+- [Portefeuille Metamask](https://metamask.io/).
+- [Environnement de développement Remix](https://remix.ethereum.org/). Si vous n'avez jamais déployé de contrat en utilisant Remix IDE, suivez ce [tutoriel pour débutants](https://docs.chain.link/getting-started/deploy-your-first-contract).
+- Le test sera effectué sur le réseau de test Sepolia. Par conséquent, vous aurez besoin de suffisamment d'ETH Sepolia pour déployer et interagir avec votre contrat. Vous aurez également besoin de suffisamment de jetons LINK Sepolia pour payer le réseau Chainlink afin d'obtenir des nombres aléatoires. Vous pouvez obtenir des LINKs de test auprès du [Chainlink faucet](https://faucets.chain.link/).
+
+### Correction CoinFlip
+
+Ci-dessous se trouve le contrat `CoinFlipFix`. Veuillez noter que certaines variables sont codées en dur et définies en tant que variables d'état à des fins éducatives, ce qui rend ce contrat inadapté au déploiement en production.
+
+<CodeLink
+  httplink="https://raw.githubusercontent.com/web3station/CoinFlip/main/contracts/CoinFlipFix.sol"
+  lang="solidity"
+/>
+
+La meilleure façon de comprendre la méthode Direct Funding de Chainlink VRF v2 est d'essayer le tutoriel _Get a Random Number_ de la [documentation officielle](https://docs.chain.link/vrf/v2/direct-funding/examples/get-a-random-number).
+
+Un ou plusieurs nombres aléatoires sont demandés à un oracle, qui génère un tableau de nombres aléatoires et une preuve cryptographique. Ensuite, l'oracle renvoie les résultats dans un rappel. Cette séquence est connue sous le nom de _Request and Receive cycle_. Pour cette raison, il existe deux fonctions :
+
+- `flip` : utilisée pour demander un nombre aléatoire. \*_Notez_: Vous pourriez nommer votre fonction comme vous le souhaitez, tant que la fonction appelle `requestRandomness`.
+
+- `fulfillRandomWords` : c'est la fonction de rappel où vous pouvez traiter les mots aléatoires reçus. La signature de la fonction ne peut pas être modifiée. En fait, remarquez que votre contrat hérite de `VRFV2WrapperConsumerBase` et que le rappel est défini [ici](https://github.com/smartcontractkit/chainlink/blob/b3abf270de833c6c0d29e28dc0de738dda03ab7d/contracts/src/v0.8/vrf/VRFV2WrapperConsumerBase.sol#L79).
+
+Analysons la nouvelle fonction `flip` :
+
+- Elle reçoit un tableau booléen de `_guesses` en entrée, dont la longueur doit être de 10 (nous demandons aux joueurs de deviner les dix flips de la pièce à l'avance. Ils gagnent s'ils ont tout juste).
+
+- Ensuite, elle appelle Chainlink VRF (`requestRandomness`) pour demander dix mots aléatoires. La fonction retourne un identifiant unique : `requestId`. Notez que requestRandomness prend soin de payer l'oracle en jetons LINK dans la même transaction. Le montant est basé sur `callbackGasLimit`, qui est la limite de la quantité de gaz à utiliser pour appeler la fonction de rappel `fulfillRandomWords` **plus** une prime. Le modèle des coûts est détaillé dans la [documentation officielle](https://docs.chain.link/vrf/v2/estimating-costs).
+
+- L'identifiant de la demande, le montant payé et les valeurs devinées par le joueur `_guesses` sont stockés dans la table de hachage `requests`.
+
+  ```solidity
+  requests[requestId] = RequestStatus({
+
+  paid: VRF_V2_WRAPPER.calculateRequestPrice(callbackGasLimit),
+  randomWords: new uint256[](0),
+  fulfilled: false,
+  sides: new bool[](0),
+  guesses: _guesses
+  });
+  ```
+
+D'autre part, la fonction de rappel `fulfillRandomWords` traite les mots aléatoires reçus :
+
+- Marque la demande comme étant remplie et stocke les mots aléatoires reçus.
+
+  ```solidity
+  requests[_requestId].fulfilled = true;
+
+  requests[_requestId].randomWords = _randomWords;
+  ```
+
+- Ensuite, la fonction calcule `side` pour chaque mot aléatoire reçu en le divisant par `FACTOR` (logique similaire au défi Ethernaut CoinFlip).
+
+  ```solidity
+  bool[] memory sides = new bool[](10);
+
+  uint256 coinFlip;
+  for (uint8 i = 0; i < _randomWords.length; i++) {
+  coinFlip = _randomWords[i] / FACTOR;
+  sides[i] = coinFlip == 1 ? true : false;
+  }
+  requests[_requestId].sides = sides;
+  ```
+
+- Ensuite, la fonction appelle une fonction privée `getGameResults` qui compare les valeurs devinées par les joueurs avec les nombres aléatoires. La fonction renvoie le nombre de résultats corrects `correctResults` et un booléen `isWinner` défini à true si le joueur a tout deviné correctement.
+
+- Enfin, il émet un événement `GameResult` avec les résultats du jeu.
+
+Notez qu'à tout moment, un joueur peut appeler `getRequestStatus` pour obtenir les résultats d'un jeu spécifique (identifié de manière unique par `_requestId`).
+
+### Test
+
+Maintenant, testons le contrat `CoinFlipFix`:
+
+- Ouvrez [Remix IDE](https://remix.ethereum.org/#lang=en&optimize=false&runs=200&evmVersion=null). Créez un nouveau fichier Solidity `CoinFlipFix.sol` et copiez/collez le code ci-dessus.
+
+- Compilez le contrat, puis déployez-le sur le testnet Sepolia.
+
+- Alimentez votre contrat en tokens LINK (~3 tokens LINK par appel de `flip`). Vous pouvez suivre [ce tutoriel](https://docs.chain.link/resources/fund-your-contract/) pour apprendre à financer un contrat.
+
+- Maintenant, essayez d'obtenir dix résultats de lancer de pièce. Par exemple : `[false,false,true,true,true,true,false,true,true,false]`. Ensuite, cliquez sur `transact`.
+
+  <ImageWithZoom
+    client:load
+    src="/blogs/ethernaut/level3/coinflix-fix-transact.png"
+    alt="CoinFlipFix liste transactions"
+  />
+
+- Metamask s'ouvre et vous demande de confirmer la transaction. **Note importante**: Remix IDE ne définit pas la bonne limite de gaz. Pour que cet exemple fonctionne, définissez une limite de gaz de _400 000_, comme [expliqué ici](https://support.metamask.io/hc/en-us/articles/360022895972).
+
+- Une fois confirmé, cliquez sur `lastRequestId` pour obtenir l'ID de la requête.
+
+  <ImageWithZoom
+    client:load
+    src="/blogs/ethernaut/level3/coinflix-fix-lastRequestId.png"
+    alt="CoinFlipFix dernier identifiant"
+  />
+
+- Attendez quelques minutes, puis cliquez sur `getRequestStatus` avec votre ID de requête. Dans mon test, j'ai obtenu six résultats corrects.
+
+  <ImageWithZoom
+    client:load
+    src="/blogs/ethernaut/level3/coinflix-fix-getRequestStatus.png"
+    alt="CoinFlipFix information requete"
+  />
+
+- Jouez plusieurs fois et voyez si vous pouvez gagner le jeu 🙂.
+
+## Réflexions finales
+
+Comme discuté au début, _l'aléatoire_ est essentiel pour de nombreux projets : NFTs, jeux, loteries, etc. Lors du développement d'un contrat intelligent, vous devez prêter une grande attention à l'expérience utilisateur ainsi qu'à leur sécurité : s'appuyer sur des solutions hors chaîne non sécurisées (par exemple, des oracles sans aucune vérification cryptographique) ou des solutions de contournement sur chaîne (par exemple, blockhashes) doit être exclu, et vous devriez vous appuyer sur des oracles qui fournissent une randomisation qui peut être vérifiée cryptographiquement sur chaîne. Pour en savoir plus sur Chainlink VRF :
+
+- [Site officiel](https://chain.link/vrf).
+
+- [Pourquoi la vraie Randomité est importante dans web3](https://chain.link/education-hub/randomness-web3).
+
+- [Verifiable Random Function (VRF)](https://chain.link/education-hub/verifiable-random-function-vrf).

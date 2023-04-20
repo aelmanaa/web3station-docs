@@ -1,0 +1,1 @@
+import "./click-to-zoom";
