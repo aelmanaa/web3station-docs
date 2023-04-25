@@ -1,1 +1,1 @@
-import "./click-to-zoom";
+import "./copy-to-clipboard";
