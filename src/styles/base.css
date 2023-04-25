@@ -114,6 +114,12 @@
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-skin-card-muted;
   }
+
+  select {
+    @apply outline-2 outline-offset-1 outline-skin-fill 
+    focus-visible:no-underline focus-visible:outline-dashed;
+    background-color: rgba(var(--color-fill), 1);
+  }
 }
 
 @layer components {
