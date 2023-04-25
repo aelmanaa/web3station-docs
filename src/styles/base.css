@@ -130,3 +130,15 @@
     @apply outline-2 outline-offset-1 outline-skin-fill focus-visible:no-underline focus-visible:outline-dashed;
   }
 }
+
+.copy-code-button-wrapper {
+  position: absolute;
+  transform: translateY(5px);
+  right: 0;
+}
+
+.copy-code-button-wrapper > button > img {
+  border-color: black;
+  width: 16px;
+  height: 16px;
+}
