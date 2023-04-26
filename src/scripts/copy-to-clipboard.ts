@@ -1,4 +1,4 @@
-import * as ClipboardJS from "clipboard";
+import ClipboardJS from "clipboard";
 
 const clipboard = new ClipboardJS(".copy-iconbutton");
 
@@ -26,7 +26,8 @@ document.addEventListener("DOMContentLoaded", () => {
     copyButton.ariaLabel = "copy to clipoard";
 
     container.appendChild(copyButton);
-    codeBlock.parentElement.style.position = "relative";
+    if (codeBlock.parentElement)
+      codeBlock.parentElement.style.position = "relative";
 
     codeBlock.insertAdjacentElement("beforebegin", container);
   });
