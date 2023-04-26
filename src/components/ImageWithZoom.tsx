@@ -10,7 +10,6 @@ export default function ({ src, alt }: ImageWithZoomProps) {
   const [showZoom, setShowZoom] = useState(false);
 
   const toggleZoom = () => {
-    console.log("togglezoom");
     setShowZoom(!showZoom);
   };
 
