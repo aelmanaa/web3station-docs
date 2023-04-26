@@ -6,8 +6,9 @@ import remarkCollapse from "remark-collapse";
 import sitemap from "@astrojs/sitemap";
 import { SITE } from "./src/config";
 import { defaultLang } from "./src/i18n/ui";
-
 import mdx from "@astrojs/mdx";
+
+import partytown from "@astrojs/partytown";
 
 // https://astro.build/config
 export default defineConfig({
@@ -29,6 +30,12 @@ export default defineConfig({
       },
     }),
     mdx(),
+    partytown({
+      // Adds dataLayer.push as a forwarding-event.
+      config: {
+        forward: ["dataLayer.push"],
+      },
+    }),
   ],
   markdown: {
     remarkPlugins: [
