@@ -32,6 +32,22 @@ const socialImageURL = new URL(
 <!DOCTYPE html>
 <html lang={lang}>
   <head>
+    <script
+      type="text/partytown"
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-7GWCJKVLYZ"
+    ></script>
+    <script type="text/partytown">
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        window.dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+
+      gtag("config", "G-7GWCJKVLYZ");
+    </script>
+    )
+
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
